@@ -480,7 +480,7 @@ if st.session_state.current_page == "locate":
                     step=50
                 )
 
-            # Apply filter safely
+            #Apply filter safely
             df_cost = df_cost[
                 (df_cost["cost"] >= cost_range[0]) &
                 (df_cost["cost"] <= cost_range[1])
