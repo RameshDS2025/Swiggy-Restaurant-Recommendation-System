@@ -46,13 +46,13 @@ Techniques:
 . Reusable encoded data and model files (.pkl)
 ## Demo
 
-![App Screenshot] (https://github.com/RameshDS2025/Swiggy-Restaurant-Recommendation-System/blob/8c6670b5385b1c48e036c8449cc1088cba818a03/Screen%20Shorts/SS1.png)
+![App Screenshot](Screen%20Shorts/SS1.png)
+![App Screenshot](Screen%20Shorts/SS2.png)
+![App Screenshot](Screen%20Shorts/SS3.png)
 
-![App Screenshot] (https://github.com/RameshDS2025/Swiggy-Restaurant-Recommendation-System/blob/8c6670b5385b1c48e036c8449cc1088cba818a03/Screen%20Shorts/SS2.png)
+## 🎥 Demo Video
+▶️ [Click here to watch the demo](https://raw.githubusercontent.com/RameshDS2025/Swiggy-Restaurant-Recommendation-System/main/Screen%20Shorts/Swiggy_demo_vedio.mp4)
 
-![App Screenshot] (https://github.com/RameshDS2025/Swiggy-Restaurant-Recommendation-System/blob/8c6670b5385b1c48e036c8449cc1088cba818a03/Screen%20Shorts/SS3.png)
-
-[![Watch Demo] (https://github.com/RameshDS2025/Swiggy-Restaurant-Recommendation-System/blob/4cb577ad1b06d5989132bc30c176f73dc68d58f8/Screen%20Shorts/Swiggy_demo_vedio.mp4)
 
 
 
