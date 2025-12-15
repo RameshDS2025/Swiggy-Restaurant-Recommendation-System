@@ -393,7 +393,7 @@ if st.session_state.current_page == "locate":
 
             if len(item_options) == 0:
                 st.markdown(
-                    "<p style='color:#6b6b6b; font-weight:600;'>Only city</p>",
+                    "<p style='color:#6b6b6b; font-weight:600;'>Only Cuisine</p>",
                     unsafe_allow_html=True
                 )
                 df_item = df_cuisine.copy()
@@ -413,45 +413,79 @@ if st.session_state.current_page == "locate":
     col5, col6 = st.columns(2)
 
 # ---------------- RATING SLIDER ----------------
+
     with col5:
         df_rating = df_item.copy()
 
-        min_rating = float(df_rating["rating"].min())
-        max_rating = float(df_rating["rating"].max())
+        rating_range = None
 
-        rating_range = st.slider(
-            "⭐ Rating",
-            min_value=0.0,
-            max_value=5.0,
-            value=(min_rating, max_rating),
-            step=0.1
-        )
+        if df_rating.empty:
+            st.info("No rating data available")
 
-        df_rating = df_rating[
-            (df_rating["rating"] >= rating_range[0]) &
-            (df_rating["rating"] <= rating_range[1])
-        ]
+        else:
+            min_rating = float(df_rating["rating"].min())
+            max_rating = float(df_rating["rating"].max())
+
+            if min_rating == max_rating:
+                st.markdown(
+                    f"<p><b>⭐ Rating:</b> {min_rating}</p>",
+                    unsafe_allow_html=True
+                )
+                rating_range = (min_rating, max_rating)
+
+            else:
+                rating_range = st.slider(
+                    "⭐ Rating",
+                    min_value=0.0,
+                    max_value=5.0,
+                    value=(min_rating, max_rating),
+                    step=0.1
+                )
+
+            df_rating = df_rating[
+                (df_rating["rating"] >= rating_range[0]) &
+                (df_rating["rating"] <= rating_range[1])
+            ]
 
     # ---------------- COST SLIDER ----------------
-    with col6:
 
+    with col6:
         df_cost = df_rating.copy()
 
-        min_cost = int(df_cost["cost"].min())
-        max_cost = int(df_cost["cost"].max())
+        # DEFAULT → always defined
+        cost_range = None
 
-        cost_range = st.slider(
-            "💰 Cost (₹)",
-            min_value=min_cost,
-            max_value=max_cost,
-            value=(min_cost, max_cost),
-            step=50
-        )
+        if df_cost.empty:
+            st.info("No cost data available")
 
-        df_cost = df_cost[
-            (df_cost["cost"] >= cost_range[0]) &
-            (df_cost["cost"] <= cost_range[1])
-        ]
+        else:
+            min_cost = int(df_cost["cost"].min())
+            max_cost = int(df_cost["cost"].max())
+
+            # Case 1: only one unique cost
+            if min_cost == max_cost:
+                st.markdown(
+                    f"<p><b>💰 Cost (₹):</b> {min_cost}</p>",
+                    unsafe_allow_html=True
+                )
+                cost_range = (min_cost, max_cost)
+
+            # Case 2: multiple values → slider
+            else:
+                cost_range = st.slider(
+                    "💰 Cost (₹)",
+                    min_value=min_cost,
+                    max_value=max_cost,
+                    value=(min_cost, max_cost),
+                    step=50
+                )
+
+            # Apply filter safely
+            df_cost = df_cost[
+                (df_cost["cost"] >= cost_range[0]) &
+                (df_cost["cost"] <= cost_range[1])
+            ]
+
 
 st.markdown("""
 <style>
@@ -482,87 +516,79 @@ if st.session_state.current_page == "home":
     </div>
     """, unsafe_allow_html=True)
 
-if df_clean.shape[0] == 0:
-    st.warning("No restaurants found for selected filters.")
-    
+if st.session_state.current_page == "locate":
 
-st.markdown("---")
-st.subheader("🎯 Recommended Restaurants")
+    st.markdown("---")
+    st.subheader("🎯 Recommended Restaurants")
 
-# Columns used during training (ONLY categorical)
-cat_cols = ["Area", "city", "Item", "cuisine"]
+    # Columns used during training
+    cat_cols = ["Area", "city", "Item", "cuisine"]
 
-if "df_cost" not in locals():
-    df_cost = df_clean.copy()
+    if "df_cost" not in locals():
+        df_cost = df_clean.copy()
 
-# Final filtered dataframe
-final_df = df_cost.copy()
+    final_df = df_cost.copy()
 
-if final_df.empty:
-    st.warning("⚠️ No restaurants found for selected filters.")
-else:
-    # ---------------- ENCODE FILTERED DATA ----------------
-    encoded_filtered = encoder.transform(final_df[cat_cols])
-    encoded_filtered_df = pd.DataFrame(
-        encoded_filtered,
-        columns=encoder.get_feature_names_out(cat_cols)
-    )
+    if final_df.empty:
+        st.warning("⚠️ No restaurants found for selected filters.")
+    else:
+        # ENCODE
+        encoded_filtered = encoder.transform(final_df[cat_cols])
+        encoded_filtered_df = pd.DataFrame(
+            encoded_filtered,
+            columns=encoder.get_feature_names_out(cat_cols)
+        )
 
-    # ---------------- SCALE (MATCH TRAINING) ----------------
-    scaled_filtered = scaler.transform(encoded_filtered_df)
+        # SCALE
+        scaled_filtered = scaler.transform(encoded_filtered_df)
 
-    # ---------------- PREDICT CLUSTER ----------------
-    final_df = final_df.copy()
-    final_df["cluster"] = kmeans.predict(scaled_filtered)
+        # PREDICT CLUSTER
+        final_df["cluster"] = kmeans.predict(scaled_filtered)
+        target_cluster = final_df["cluster"].mode()[0]
 
-    # Most common cluster
-    target_cluster = final_df["cluster"].mode()[0]
+        # RECOMMENDATIONS (SAFE)
+        recommendations = df_clean[
+            (df_clean["cluster"] == target_cluster) &
+            (df_clean["city"].isin(city))
+        ].copy()
 
-    # ---------------- GET CANDIDATES ----------------
-    recommendations = df_clean[df_clean["cluster"] == target_cluster].copy()
+        # Optional area filter
+        if "area" in locals() and area:
+            recommendations = recommendations[
+                recommendations["Area"].isin(area)
+            ]
 
-    # Remove already selected restaurants
-    recommendations = recommendations[
-        ~recommendations["name"].isin(final_df["name"])
-    ]
+        # Apply rating & cost filters
+        recommendations = recommendations[
+            (recommendations["rating"] >= rating_range[0]) &
+            (recommendations["rating"] <= rating_range[1]) &
+            (recommendations["cost"] >= cost_range[0]) &
+            (recommendations["cost"] <= cost_range[1])
+        ]
 
-    # 🔥 APPLY USER FILTERS AGAIN
-    recommendations = recommendations[
-        (recommendations["rating"] >= rating_range[0]) &
-        (recommendations["rating"] <= rating_range[1]) &
-        (recommendations["cost"] >= cost_range[0]) &
-        (recommendations["cost"] <= cost_range[1])
-    ]
+        recommendations = recommendations.sort_values(
+            by=["rating", "rating_count"],
+            ascending=False
+        ).head(10)
 
-    # Final ranking
-    recommendations = recommendations.sort_values(
-        by=["rating", "rating_count"],
-        ascending=False
-    ).head(10)
-
-    # ---------------- DISPLAY ----------------
-
-    cols = st.columns(2)
-
-    for i, (_, row) in enumerate(recommendations.iterrows()):
-        with cols[i % 2]:
-            st.markdown(
-                f"""
-                <div style="
-                    background-color:#a081e6;
-                    padding:15px;
-                    border-radius:12px;
-                    margin-bottom:15px;
-                    box-shadow:0px 4px 12px rgba(0,0,0,0.15);
-                ">
-                    <h4 style="color:#800000;">🍴 {row['name']}</h4>
-                    <p><b>City:</b> {row['city']}</p>
-                    <p><b>Area:</b> {row['Area']}</p>
-                    <p><b>Item:</b> {row['Item']}</p>
-                    <p><b>Cuisine:</b> {row['cuisine']}</p>
-                    <p><b>Rating:</b> ⭐ {row.get('rating', 'N/A')}</p>
-                    <p><b>Cost:</b> ₹ {row.get('cost', 'N/A')}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        # DISPLAY
+        cols = st.columns(2)
+        for i, (_, row) in enumerate(recommendations.iterrows()):
+            with cols[i % 2]:
+                st.markdown(
+                    f"""
+                    <div style="background-color:#a081e6;
+                                padding:15px;
+                                border-radius:12px;
+                                margin-bottom:15px;">
+                        <h4>🍴 {row['name']}</h4>
+                        <p><b>City:</b> {row['city']}</p>
+                        <p><b>Area:</b> {row['Area']}</p>
+                        <p><b>Item:</b> {row['Item']}</p>
+                        <p><b>Cuisine:</b> {row['cuisine']}</p>
+                        <p><b>Rating:</b> ⭐ {row['rating']}</p>
+                        <p><b>Cost:</b> ₹ {row['cost']}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
